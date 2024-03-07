@@ -1,0 +1,467 @@
+---
+title: "exo-5"
+assignment: Noromalala
+---
+
+## Exo 5
+
+## Challenge 1
+
+**Step 1**
+
+Upload the data set
+
+```{r}
+library(tidyverse)
+f <- "https://raw.githubusercontent.com/difiore/ada-2024-datasets/main/IMDB-movies.csv"
+
+d <- read_csv(f, col_names = TRUE)
+
+```
+
+**Step 2**
+
+Group the data per decade
+
+```{r}
+moviebydecade <- d |>
+  filter(startYear >= 1920 & startYear <= 1979 & runtimeMinutes >= 60 & runtimeMinutes <= 180) |>
+  mutate(Decade = case_when(
+    startYear >= 1920 & startYear <= 1929 ~ "20s",
+    startYear >= 1930 & startYear <= 1939 ~ "30s",
+    startYear >= 1940 & startYear <= 1949 ~ "40s",
+    startYear >= 1950 & startYear <= 1959 ~ "50s",
+    startYear >= 1960 & startYear <= 1969 ~ "60s",
+    startYear >= 1970 & startYear <= 1979 ~ "70s",
+    TRUE ~ "other"
+  ))
+
+print(moviebydecade)
+```
+
+**Step 3**
+
+plot (histogram)
+
+```{r}
+library(ggplot2)
+
+hist <- ggplot(moviebydecade, aes(x = runtimeMinutes)) +
+  geom_histogram(binwidth = 10, fill = "red", color = "black") +
+  labs(litle = "Movie Runtimes by Decade",
+       x = "Runtime (min)",
+       y = "Frequency") + 
+  facet_wrap(~ Decade, scales = "free") +
+  theme_minimal()
+
+print(hist)
+```
+
+**Step 4**
+
+mean and sd population
+
+```{r}
+
+results <- moviebydecade |>
+  group_by (Decade) |>
+  summarize (mean = mean(runtimeMinutes), sd = sd(runtimeMinutes))
+print(results)
+```
+
+**Step 5 and 6**
+
+mean, sd, se of the sample
+
+```{r}
+library(dplyr)
+sample_results <- moviebydecade |>
+    do({
+    sample_data <-  slice_sample (moviebydecade, n = 100, replace = FALSE)
+    data.frame(
+      Decade = unique(moviebydecade$Decade),
+      sample_mean = mean(sample_data$runtimeMinutes),
+      sample_sd = sd (sample_data$runtimeMinutes),
+      sample_SE = sd(sample_data$runtimeMinutes)/sqrt(100)
+    )
+  })
+print(sample_results)
+```
+
+**Step 7**
+
+Comparison
+
+```{r}
+pop_data <- moviebydecade |>
+  group_by (Decade) |>
+  summarize (
+    pop_mean = mean(runtimeMinutes),
+    pop_sd = sd(runtimeMinutes),
+    pop_se = sd(runtimeMinutes)/sqrt(n())
+  )
+
+comparison_results <- merge(pop_data, sample_results, by = "Decade")
+
+
+print(comparison_results)
+```
+
+**Step 8**
+
+Sampling distribution (withought NA)
+
+```{r}
+reps <- 1000
+
+sampling_distribution <- moviebydecade |>
+    group_by(Decade) |>
+  do({
+    samples <- replicate(reps, {
+      sample_data <- slice_sample(., n = 100, replace = FALSE)
+      data.frame(
+        sample_mean = mean(sample_data$runtimeMinutes, na.rm = TRUE),
+        sample_sd = sd(sample_data$runtimeMinutes, na.rm = TRUE)
+      )
+    }, simplify = FALSE)
+    bind_rows(samples)
+  }) |>
+  unnest(cols = c(sample_mean, sample_sd))
+
+print(sampling_distribution)
+
+```
+
+**Step 9**
+
+Summary and plot of the sampling distribution
+
+```{r}
+sampling_distribution_summary <- sampling_distribution |>
+  group_by(Decade) |>
+  summarize(mean_sample_mean = mean(sample_mean),
+            sd_sample_mean = sd(sample_mean))
+
+
+sampling_distribution_plot <- ggplot(sampling_distribution, aes(x = sample_mean)) +
+  geom_histogram(binwidth = 1, fill = "lightblue", color = "black") +
+  facet_wrap(~ Decade, scales = "free") +
+  labs(x = "Sample Mean", y = "Frequency") +
+  theme_minimal()
+
+
+print(sampling_distribution_summary)
+
+print(sampling_distribution_plot)
+
+#I think it is normal shape compared to the original sample
+```
+
+Step 10
+
+comparaison
+
+```{r}
+se_sample <- moviebydecade |>
+  group_by(Decade) %>%
+  summarize(se_sample = sd(runtimeMinutes) / sqrt(100))
+
+se_population <- sample_results |>
+  group_by(Decade) |>
+  summarize(se_population = mean(sample_sd) / sqrt(100))
+
+se_sampling_distribution <- sampling_distribution_summary |>
+  mutate(se_sampling_distribution = sd_sample_mean / sqrt(100))
+
+comparison <- merge(se_sample, se_population, by = "Decade") |>
+  merge(se_sampling_distribution, by = "Decade")
+
+print(comparison)
+
+```
+
+## Challenge 2
+
+**Step 1**
+
+Upload data
+
+```{r}
+library(tidyverse)
+f <- "https://raw.githubusercontent.com/difiore/ada-2024-datasets/main/zombies.csv"
+z <- read_csv(f, col_names = TRUE)
+head(z)
+```
+
+**Step 2**
+
+Mean and sd of the population
+
+```{r}
+#Mean
+mh <- mean(z$height)
+mw <- mean(z$weight)
+ma <- mean(z$age)
+mzk <- mean (z$zombies_killed)
+mye <- mean(z$years_of_education)
+mh
+mw
+mzk
+mye
+#sd(I did both)
+
+sdh1 <- sd (z$height) #or
+sdh <- sqrt(sum((z$height - mh)^2) / length(z$height))
+
+sdw1 <- sd (z$weight)
+sdw <- sqrt(sum((z$weight - mw)^2) / length(z$weight))
+
+sda1 <- sd (z$age)
+sda <- sqrt(sum((z$age - ma)^2) / length(z$age))
+
+sdzk <- sd (z$zombies_killed)
+sdzk <- sqrt(sum((z$zombies_killed - mzk)^2) / length(z$zombies_killed))
+
+sdye1 <- sd(z$years_of_education)
+sdye <- sqrt(sum((z$years_of_education - mye)^2) / length(z$zombies_killed))
+```
+
+**Step 3**
+
+plot by sex
+
+```{r}
+males <- z|>
+  filter (gender == "Male")
+females <- z|>
+  filter(gender == "Female")
+#males
+male_means <- c(
+  mean (males$weight),
+  mean (males$height),
+  mean (males$age),
+  mean (males$zombies_killed),
+  mean (males$years_of_education))
+
+#females
+female_means <- c(
+  mean (females$weight),
+  mean (females$height),
+  mean (females$age),
+  mean (females$zombies_killed),
+  mean (females$years_of_education))
+
+mean_data <- data.frame(variable = c("Weight", "Height", "Age", "Zombies Killed", "Years of Education"),
+                        gender = rep(c("Male", "Female"), each = 5),
+                        mean_value = c(male_means, female_means))
+
+ggplot(mean_data, aes(x = variable, y = mean_value, fill = gender)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  labs(title = "Mean by Gender",
+       x = "Variable",
+       y = "Mean") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  scale_fill_manual(values = c("Male" = "blue", "Female" = "pink"))# I like the color of gender reveil
+
+```
+
+**Step 4**
+
+Scatter plot height and age
+
+```{r}
+ggplot(z, aes(x = age, y = height, color = gender)) +
+  geom_point() +
+  geom_smooth(method = "lm", se = FALSE) + 
+  labs(title = "Scatterplot of Height and Age by Gender",
+       x = "Age",
+       y = "Height") +
+  theme_minimal() +
+  scale_color_manual(values = c("Male" = "blue", "Female" = "pink")) +  
+  facet_wrap(~gender) 
+
+# #scatter plot height and age
+ggplot(z, aes(x = age, y = weight, color = gender)) +
+  geom_point() +
+  geom_smooth(method = "lm", se = FALSE) + 
+  labs(title = "Scatterplot of Weight and Age by Gender",
+       x = "Age",
+       y = "Weight") +
+  theme_minimal() +
+  scale_color_manual(values = c("Male" = "blue", "Female" = "pink")) +  
+  facet_wrap(~gender)
+#weight and height are positively correlated with age
+
+```
+
+**Step 5**
+
+qq plot
+
+```{r}
+library(patchwork)
+create_plots <- function(var) {
+  # Histogram
+  hist_plot <- ggplot(z, aes_string(x = var)) +
+    geom_histogram(binwidth = 5, fill = "skyblue", color = "black") +
+    labs(title = paste("Histogram of", var),
+         x = var,
+         y = "Frequency") +
+    theme_minimal()
+  
+  # Q-Q plot
+  qq_plot <- ggplot(z, aes_string(sample = var)) +
+    geom_qq() +
+    geom_abline(intercept = mean(z[[var]]), slope = sd(z[[var]]), color = "red", linetype = "dashed") +
+    labs(title = paste("Q-Q Plot of", var),
+         x = "Theoretical Quantiles",
+         y = "Sample Quantiles") +
+    theme_minimal()
+  
+  return(list(hist_plot, qq_plot))
+}
+library(patchwork)
+
+height_plots <- create_plots("height")
+weight_plots <- create_plots("weight")
+age_plots <- create_plots("age")
+zombies_killed_plots <- create_plots("zombies_killed")
+years_of_education_plots <- create_plots("years_of_education")
+
+
+height_plots[[1]] / height_plots[[2]]
+  weight_plots[[1]] / weight_plots[[2]]
+  age_plots[[1]] / age_plots[[2]]
+  zombies_killed_plots[[1]] / zombies_killed_plots[[2]]
+  years_of_education_plots[[1]] / years_of_education_plots[[2]]
+
+#normally distributed: height, weight and age, non-normal: zombies killed and year of education. My guess for the non-normal distribution is left skewed - exponential maybe
+```
+
+**Step 6**
+
+Sample mean, sd, se, confidence interval
+
+```{r}
+sample_subset <- z |> slice_sample(n = 50, replace = FALSE)
+  
+  
+  mean_variables <- sapply(sample_subset[, c("height", "weight", "age", "zombies_killed", "years_of_education")], mean)
+  sd_variables <- sapply(sample_subset[, c("height", "weight", "age", "zombies_killed", "years_of_education")], sd)
+  
+  
+  n <- nrow(sample_subset)
+  se_variables <- sd_variables / sqrt(n)
+  
+  alpha <- 0.05  
+  z_critical <- qnorm(1 - alpha/2)  # two-tailed test because pop mean I guess
+  
+ 
+  lower_limits <- mean_variables - z_critical * se_variables
+  upper_limits <- mean_variables + z_critical * se_variables
+  
+   resultat <- data.frame(
+    variables = c("height", "weight", "age", "zombies_killed", "years_of_education"),
+    mean = mean_variables,
+    standard_deviation = sd_variables,
+    standard_error = se_variables,
+    lower_limit_CI = lower_limits,
+    upper_limit_CI = upper_limits
+  )
+  
+ 
+  print(resultat)
+```
+
+**Step 7**
+
+Sampling distribution mean and sd
+
+```{r}
+sampling_distribution <- data.frame(matrix(NA, nrow = 199, ncol = 5))
+  colnames(sampling_distribution) <- c("height", "weight", "age", "zombies_killed", "years_of_education")
+  
+ 
+  for (i in 1:199) {
+   
+    sample_subset <- z |> slice_sample(n = 50, replace = FALSE)
+    
+       means <- sapply(sample_subset[, c("height", "weight", "age", "zombies_killed", "years_of_education")], mean)
+    
+        sampling_distribution[i, ] <- means
+  }
+  
+  means_sampling_distribution <- apply(sampling_distribution, 2, mean)
+  sds_sampling_distribution <- apply(sampling_distribution, 2, sd)
+  
+ 
+  print(means_sampling_distribution)
+
+  print(sds_sampling_distribution)
+  
+  #The SE of the sample (n=50) is quite the same as the SE of the sampling distribution sd
+```
+
+**Step 8**
+
+Plot sampling distribution
+
+```{r}
+library(ggplot2)
+  sampling_distribution_df <- data.frame(
+    variables = rep(c("height", "weight", "age", "zombies_killed", "years_of_education"), each = 199),
+    mean = c(sampling_distribution[, "height"],
+             sampling_distribution[, "weight"],
+             sampling_distribution[, "age"],
+             sampling_distribution[, "zombies_killed"],
+             sampling_distribution[, "years_of_education"])
+  )
+  
+  # Plot the sampling distributions
+  ggplot(sampling_distribution_df, aes(x = mean, fill = variables)) +
+    geom_density(alpha = 0.5) +
+    labs(title = "Sampling Distributions of Variable Means",
+         x = "Mean",
+         y = "Density") +
+        theme_minimal()
+  #They are normaly distributed not now but the original were not
+```
+
+**Step 9**
+
+Confidence interval
+
+```{r}
+lower_bound <- quantile(sampling_distribution_df$mean, 0.025)
+  upper_bound <- quantile(sampling_distribution_df$mean, 0.975)
+  
+  print(paste("Lower Bound:", lower_bound))
+  print(paste("Upper Bound:", upper_bound))
+  
+  # the CIs calculated before was ranged in between the CI of the sampling distribution
+
+```
+
+Step 10
+
+Bootstrapping
+
+```{r}
+confidence_intervals <- data.frame(variable = character(), lower_bound = numeric(), upper_bound = numeric())
+    variables <- colnames(z)
+    
+  for (variable in variables) {
+       boot_means <- replicate(1000, {
+           resampled_data <- sample(z[[variable]], replace = TRUE)
+            mean(resampled_data)
+    })
+            lower_quantile <- quantile(boot_means, 0.025, na.rm = TRUE)
+    upper_quantile <- quantile(boot_means, 0.975, na.rm = TRUE)
+            confidence_intervals <- rbind(confidence_intervals, 
+                                  data.frame(variable = variable, 
+                                             lower_bound = lower_quantile, 
+                                             upper_bound = upper_quantile))
+  }
+     print(confidence_intervals)
+```
